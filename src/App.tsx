@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, type FormEvent } from 'react';
 import {
   TrendingUp, PlusCircle, Wallet, BarChart3, Trash2, Upload,
   CheckCircle2, XCircle, Filter, Clock, Award,
@@ -127,7 +127,6 @@ export default function App() {
 
   useEffect(() => { carregarDados(); }, []);
 
-  // Atualiza o tipo de conta (Exame/Real) automaticamente ao trocar a conta no formulário
   useEffect(() => {
     if (contaId && contaId !== 'Geral') {
       const c = contas.find(acc => String(acc.id) === String(contaId));
@@ -145,13 +144,13 @@ export default function App() {
     } catch { return null; }
   };
 
-  const handleAddTrade = async (e: React.FormEvent) => {
+  const handleAddTrade = async (e: FormEvent) => {
     e.preventDefault();
     if (!pnl) return;
     setSaving(true);
     const fotoUrl = fotoTrade ? await uploadImagem(fotoTrade, 'charts') : null;
     const valorPnl = parseFloat(pnl);
-    let pnlBruto = resultado === 'SL' ? -Math.abs(valorPnl) : resultado === 'BE' ? 0 : Math.abs(valorPnl);
+    const pnlBruto = resultado === 'SL' ? -Math.abs(valorPnl) : resultado === 'BE' ? 0 : Math.abs(valorPnl);
 
     const payload = {
       data: dataTrade, sessao, conta_id: contaId || 'Geral', tipo_conta: tipoContaTrade, ativo: 'MNQ!', direcao, resultado,
@@ -188,7 +187,7 @@ export default function App() {
     if (t.duracao && t.duracao !== '-') {
       const parts = t.duracao.split(' ');
       setDuracaoValor(parts[0] || '');
-      setDuracaoUnidade((parts[1] as any) || 'min');
+      setDuracaoUnidade((parts[1] as 'min' | 'H') || 'min');
     } else {
       setDuracaoValor('');
     }
@@ -200,7 +199,7 @@ export default function App() {
     setPnl(''); setComentarios(''); setDuracaoValor('');
   };
 
-  const handleAddConta = async (e: React.FormEvent) => {
+  const handleAddConta = async (e: FormEvent) => {
     e.preventDefault();
     setSaving(true);
     await supabase.from('contas').insert([{ nome: nomeConta, tipo: tipoConta, tamanho: tamanhoConta, numero: numeroConta, status: 'Em andamento' }]);
@@ -214,7 +213,7 @@ export default function App() {
     carregarDados();
   };
 
-  const handleAddMovimentacao = async (e: React.FormEvent) => {
+  const handleAddMovimentacao = async (e: FormEvent) => {
     e.preventDefault();
     setSaving(true);
     const url = (tipoMov === 'Retiro' && fotoComprovante) ? await uploadImagem(fotoComprovante, 'retiros') : null;
@@ -247,7 +246,7 @@ export default function App() {
 
   const tradesFiltrados = useMemo(() => {
     const hoje = new Date(); hoje.setHours(23, 59, 59, 999);
-    let filtrados = trades.filter((t) => {
+    const filtrados = trades.filter((t) => {
       if (contaFiltro !== 'todas' && String(t.conta_id) !== contaFiltro) return false;
       const dataT = new Date(t.data + 'T12:00:00');
       
@@ -380,7 +379,6 @@ export default function App() {
           <div className="flex flex-col items-center py-20 text-zinc-500"><RefreshCw className="w-8 h-8 animate-spin" /></div>
         ) : activeTab === 'operacoes' ? (
           <>
-            {/* NOVO TRADE OU EDIÇÃO */}
             <section className={`border rounded-2xl p-5 transition-all ${editingTradeId ? 'bg-zinc-900 border-emerald-500/50 shadow-[0_0_15px_rgba(16,185,129,0.1)]' : 'bg-[#0d0d0d] border-zinc-800/80'}`}>
               <div className="flex justify-between items-center mb-4">
                 <h2 className="text-sm font-bold text-white flex items-center gap-2">
@@ -399,4 +397,349 @@ export default function App() {
                   <div className="col-span-2 sm:col-span-1">
                     <label className="block text-[10px] font-bold text-zinc-500 mb-1">DATA</label>
                     <div className="flex items-center gap-1">
-                      <input type="date" value={dataTrade} onChange={(e) => setDataTrade(e.target.value)} className="w-full bg-[#141414] border border-
+                      <input type="date" value={dataTrade} onChange={(e) => setDataTrade(e.target.value)} className="w-full bg-[#141414] border border-zinc-800 rounded-lg px-2 py-1.5 text-white" required />
+                      <div className="flex flex-col gap-0.5">
+                        <button type="button" onClick={() => changeDate(1)} className="bg-zinc-800 hover:bg-zinc-700 text-zinc-400 rounded px-1"><ChevronUp className="w-3 h-3"/></button>
+                        <button type="button" onClick={() => changeDate(-1)} className="bg-zinc-800 hover:bg-zinc-700 text-zinc-400 rounded px-1"><ChevronDown className="w-3 h-3"/></button>
+                      </div>
+                    </div>
+                  </div>
+                  <div className="col-span-2 sm:col-span-1">
+                    <label className="block text-[10px] font-bold text-zinc-500 mb-1">CONTA</label>
+                    <select value={contaId} onChange={(e) => setContaId(e.target.value)} className="w-full bg-[#141414] border border-zinc-800 rounded-lg px-2 py-1.5 text-white">
+                      <option value="Geral">Geral</option>
+                      {contas.filter(c => c.status !== 'Reprovada').map(c => <option key={c.id} value={c.id}>{c.nome}</option>)}
+                    </select>
+                  </div>
+                  <div className="col-span-2 sm:col-span-1">
+                    <label className="block text-[10px] font-bold text-zinc-500 mb-1">TIPO (TRADE)</label>
+                    <select value={tipoContaTrade} onChange={(e) => setTipoContaTrade(e.target.value)} className="w-full bg-[#141414] border border-zinc-800 rounded-lg px-2 py-1.5 text-white font-bold">
+                      <option value="Exame">Exame</option><option value="Real">Real</option>
+                    </select>
+                  </div>
+                  <div className="col-span-2 sm:col-span-1">
+                    <label className="block text-[10px] font-bold text-zinc-500 mb-1">DIREÇÃO</label>
+                    <div className="flex gap-1">
+                      <button type="button" onClick={() => setDirecao('Buy')} className={`flex-1 py-1.5 rounded-lg border font-bold ${direcao === 'Buy' ? corBgVerde : 'bg-[#141414] border-zinc-800 text-zinc-500'}`}>Buy</button>
+                      <button type="button" onClick={() => setDirecao('Sell')} className={`flex-1 py-1.5 rounded-lg border font-bold ${direcao === 'Sell' ? corBgVermelho : 'bg-[#141414] border-zinc-800 text-zinc-500'}`}>Sell</button>
+                    </div>
+                  </div>
+                  <div className="col-span-2 sm:col-span-2">
+                    <label className="block text-[10px] font-bold text-zinc-500 mb-1">RESULTADO</label>
+                    <div className="flex gap-1">
+                      {(['TP', 'SL', 'BE'] as const).map(r => (
+                        <button key={r} type="button" onClick={() => setResultado(r)} className={`flex-1 py-1.5 rounded-lg border font-bold ${resultado === r ? (r==='TP'?corBgVerde:r==='SL'?corBgVermelho:'bg-zinc-700 text-white border-zinc-600') : 'bg-[#141414] border-zinc-800 text-zinc-500'}`}>{r}</button>
+                      ))}
+                    </div>
+                  </div>
+                  <div className="col-span-2 sm:col-span-1">
+                    <label className="block text-[10px] font-bold text-zinc-500 mb-1">VALOR P&L ($)</label>
+                    <input type="number" step="0.01" value={pnl} onChange={(e) => setPnl(e.target.value)} placeholder="0.00" className="w-full bg-[#141414] border border-zinc-800 rounded-lg px-2 py-1.5 text-white" required />
+                  </div>
+                  <div className="col-span-2 sm:col-span-1">
+                    <label className="block text-[10px] font-bold text-zinc-500 mb-1">DURAÇÃO</label>
+                    <div className="flex gap-1">
+                      <input type="number" placeholder="15" value={duracaoValor} onChange={(e) => setDuracaoValor(e.target.value)} className="w-full bg-[#141414] border border-zinc-800 rounded-lg px-2 py-1.5 text-white" />
+                      <select value={duracaoUnidade} onChange={(e) => setDuracaoUnidade(e.target.value as 'min' | 'H')} className="bg-[#141414] border border-zinc-800 rounded-lg px-1 py-1.5 text-zinc-300">
+                        <option value="min">m</option><option value="H">H</option>
+                      </select>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 lg:grid-cols-12 gap-4 items-end">
+                  <div className="lg:col-span-6">
+                    <label className="block text-[10px] font-bold text-zinc-500 mb-1.5 uppercase">Como se sentiu?</label>
+                    <div className="flex flex-wrap gap-2">
+                      {EMOCOES.map(item => (
+                        <button key={item.label} type="button" onClick={() => setEmocao(item.label)} className={`px-3 py-1.5 rounded-full font-medium flex items-center gap-1.5 border transition-all ${emocao === item.label ? 'bg-zinc-800 border-zinc-600 text-white' : 'bg-[#141414] border-zinc-800 text-zinc-500'}`}>
+                          <span>{item.emoji}</span> <span>{item.label}</span>
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                  <div className="lg:col-span-3">
+                    <label className="block text-[10px] font-bold text-zinc-500 mb-1.5 uppercase">Plano Respeitado?</label>
+                    <div className="flex gap-2">
+                      <button type="button" onClick={() => setSeguiuPlano(true)} className={`flex-1 py-1.5 rounded-lg border font-bold flex justify-center items-center gap-1 ${seguiuPlano ? corBgVerde : 'bg-[#141414] border-zinc-800 text-zinc-500'}`}><CheckCircle2 className="w-3.5 h-3.5"/> Sim</button>
+                      <button type="button" onClick={() => setSeguiuPlano(false)} className={`flex-1 py-1.5 rounded-lg border font-bold flex justify-center items-center gap-1 ${!seguiuPlano ? corBgVermelho : 'bg-[#141414] border-zinc-800 text-zinc-500'}`}><XCircle className="w-3.5 h-3.5"/> Não</button>
+                    </div>
+                  </div>
+                  <div className="lg:col-span-3">
+                    <label className="block text-[10px] font-bold text-zinc-500 mb-1.5 uppercase">Print Gráfico</label>
+                    <label className="flex items-center justify-center gap-2 bg-[#141414] border border-dashed border-zinc-700 rounded-lg px-3 py-1.5 text-zinc-400 cursor-pointer hover:bg-zinc-900">
+                      <Upload className="w-3.5 h-3.5" /> <span className="truncate">{fotoTrade ? fotoTrade.name : 'Anexar'}</span>
+                      <input type="file" accept="image/*" onChange={(e) => setFotoTrade(e.target.files?.[0] || null)} className="hidden" />
+                    </label>
+                  </div>
+                </div>
+
+                <div className="flex gap-3 pt-1">
+                  <input type="text" placeholder="Observações e comentários..." value={comentarios} onChange={(e) => setComentarios(e.target.value)} className="flex-1 bg-[#141414] border border-zinc-800 rounded-lg px-3 py-2 text-white" />
+                  <button type="submit" disabled={saving} className={`font-bold px-6 py-2 rounded-lg flex items-center gap-2 ${editingTradeId ? 'bg-blue-500 hover:bg-blue-400 text-white' : 'bg-emerald-500 hover:bg-emerald-400 text-black'}`}>
+                    {saving ? '...' : editingTradeId ? <><Save className="w-4 h-4"/> Atualizar Trade</> : '+ Salvar'}
+                  </button>
+                </div>
+              </form>
+            </section>
+
+            <section className="space-y-4">
+              <div className="bg-[#0d0d0d] border border-zinc-800/80 rounded-2xl p-3 flex flex-wrap items-center justify-between gap-3">
+                <div className="flex flex-wrap items-center gap-2">
+                  <Filter className="w-4 h-4 text-zinc-500" />
+                  {[ {id:'semana', l:'Semana'}, {id:'15d', l:'Últ. 15 dias'}, {id:'30d', l:'Últ. 30 dias'}, {id:'60d', l:'60 Dias'}, {id:'3m', l:'3 Meses'}, {id:'custom', l:'Personalizado'} ].map(p => (
+                    <button key={p.id} onClick={() => setPeriodoFiltro(p.id)} className={`px-3 py-1.5 rounded-lg font-bold transition-all ${periodoFiltro === p.id ? 'bg-emerald-500 text-black' : 'text-zinc-500 hover:text-white'}`}>{p.l}</button>
+                  ))}
+                  {periodoFiltro === 'custom' && (
+                    <div className="flex items-center gap-1 ml-2">
+                      <input type="date" value={dataInicioFiltro} onChange={e=>setDataInicioFiltro(e.target.value)} className="bg-[#141414] border border-zinc-800 rounded text-[10px] p-1 text-white" />
+                      <span className="text-zinc-500">até</span>
+                      <input type="date" value={dataFimFiltro} onChange={e=>setDataFimFiltro(e.target.value)} className="bg-[#141414] border border-zinc-800 rounded text-[10px] p-1 text-white" />
+                    </div>
+                  )}
+                </div>
+                
+                <div className="flex items-center gap-3">
+                  <div className="flex items-center bg-black border border-zinc-800 rounded-lg overflow-hidden p-0.5">
+                    <button onClick={() => setMostrarPorcentagem(false)} className={`px-3 py-1 rounded text-[11px] font-bold flex items-center gap-1 ${!mostrarPorcentagem ? 'bg-zinc-800 text-white' : 'text-zinc-500 hover:text-white'}`}><DollarSign className="w-3 h-3"/> USD</button>
+                    <button onClick={() => setMostrarPorcentagem(true)} className={`px-3 py-1 rounded text-[11px] font-bold flex items-center gap-1 ${mostrarPorcentagem ? 'bg-zinc-800 text-white' : 'text-zinc-500 hover:text-white'}`}><Percent className="w-3 h-3"/> %</button>
+                  </div>
+                  <select value={contaFiltro} onChange={(e) => setContaFiltro(e.target.value)} className="bg-[#141414] border border-zinc-800 rounded-lg px-3 py-1.5 text-white font-bold">
+                    <option value="todas">Todas as Contas</option>
+                    {contas.map((c) => <option key={c.id} value={c.id}>{c.nome} ({c.tamanho})</option>)}
+                  </select>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-3">
+                <div className="bg-[#0d0d0d] border border-zinc-800/80 rounded-xl p-4 text-center">
+                  <span className="text-[10px] font-bold uppercase text-zinc-500">P&L PERÍODO</span>
+                  <p className={`text-2xl font-black mt-1 ${metricas.pnlTotal >= 0 ? corVerde : corVermelha}`}>
+                    {metricas.pnlTotal >= 0 ? '+' : '-'}{formatarValor(metricas.pnlTotal)}
+                  </p>
+                </div>
+                <div className="bg-[#0d0d0d] border border-zinc-800/80 rounded-xl p-4 text-center">
+                  <span className="text-[10px] font-bold uppercase text-zinc-500">WIN RATE</span>
+                  <p className="text-2xl font-black text-white mt-1">{metricas.winRate.toFixed(1)}%</p>
+                </div>
+                <div className="bg-[#0d0d0d] border border-zinc-800/80 rounded-xl p-4 text-center">
+                  <span className="text-[10px] font-bold uppercase text-zinc-500">PROFIT FACTOR</span>
+                  <p className={`text-2xl font-black mt-1 ${corVerde}`}>{metricas.profitFactor}</p>
+                </div>
+                <div className="bg-[#0d0d0d] border border-zinc-800/80 rounded-xl p-4 text-center">
+                  <span className="text-[10px] font-bold uppercase text-zinc-500">RR MÉDIO</span>
+                  <p className="text-2xl font-black text-white mt-1">{metricas.rrMedio}</p>
+                </div>
+                <div className="bg-[#0d0d0d] border border-zinc-800/80 rounded-xl p-4 text-center">
+                  <span className="text-[10px] font-bold uppercase text-zinc-500">TOTAL TRADES</span>
+                  <p className="text-2xl font-black text-white mt-1">{metricas.total}</p>
+                </div>
+                <div className="bg-[#0d0d0d] border border-zinc-800/80 rounded-xl p-4 text-center lg:col-span-2">
+                  <span className="text-[10px] font-bold uppercase text-zinc-500">EMOCIONAL PREDOMINANTE</span>
+                  <div className="mt-2 flex justify-center">
+                    <span className="px-4 py-1.5 rounded-full bg-zinc-900 border border-zinc-800 text-sm font-bold text-white flex items-center gap-2">
+                      <span>{metricas.emocionalPredominante.emoji}</span> <span>{metricas.emocionalPredominante.label}</span>
+                    </span>
+                  </div>
+                </div>
+                <div className="bg-[#0d0d0d] border border-zinc-800/80 rounded-xl p-4 text-center">
+                  <span className="text-[10px] font-bold uppercase text-zinc-500">PLANO RESPEITADO</span>
+                  <p className={`text-xl font-black mt-1 ${corVerde}`}>{metricas.planoRespeitado.toFixed(1)}%</p>
+                </div>
+                <div className="bg-[#0d0d0d] border border-zinc-800/80 rounded-xl p-4 text-center">
+                  <span className="text-[10px] font-bold uppercase text-zinc-500">MAX WINS</span>
+                  <p className={`text-xl font-black mt-1 ${corVerde}`}>{metricas.maxWinStreak}</p>
+                </div>
+                <div className="bg-[#0d0d0d] border border-zinc-800/80 rounded-xl p-4 text-center">
+                  <span className="text-[10px] font-bold uppercase text-zinc-500">MAX LOSS</span>
+                  <p className={`text-xl font-black mt-1 ${corVermelha}`}>{metricas.maxLossStreak}</p>
+                </div>
+              </div>
+
+              <div className="bg-[#0d0d0d] border border-zinc-800/80 rounded-xl p-4">
+                <label className="block text-[10px] font-bold uppercase text-zinc-500 mb-2">NOTAS DO PERÍODO</label>
+                <textarea rows={2} value={notasPeriodo} onChange={(e) => setNotasPeriodo(e.target.value)} placeholder="Escreva seus aprendizados, erros e plano de ação..." className="w-full bg-[#111] border border-zinc-800 rounded-lg p-3 text-zinc-300" />
+              </div>
+            </section>
+
+            <section className="space-y-2">
+              <div className="flex items-center justify-between">
+                <h3 className="text-[11px] font-bold text-zinc-500 uppercase">Histórico</h3>
+                <div className="flex gap-2">
+                  <button onClick={() => setOrdenacao(ordenacao === 'data_desc' ? 'data_asc' : 'data_desc')} className="text-[10px] bg-zinc-900 px-2 py-1 rounded text-zinc-400 hover:text-white flex items-center">Data {ordenacao === 'data_desc' ? <ChevronDown className="w-3 h-3"/> : <ChevronUp className="w-3 h-3"/>}</button>
+                  <button onClick={() => setOrdenacao(ordenacao === 'pnl_desc' ? 'pnl_asc' : 'pnl_desc')} className="text-[10px] bg-zinc-900 px-2 py-1 rounded text-zinc-400 hover:text-white flex items-center">P&L {ordenacao === 'pnl_desc' ? <ChevronDown className="w-3 h-3"/> : <ChevronUp className="w-3 h-3"/>}</button>
+                </div>
+              </div>
+
+              <div className="bg-[#0d0d0d] border border-zinc-800/80 rounded-xl overflow-x-auto">
+                <table className="w-full text-left text-[11px]">
+                  <thead className="bg-[#111111] text-zinc-500 uppercase">
+                    <tr>
+                      <th className="py-2 px-3">Data</th>
+                      <th className="py-2 px-3">Conta / Mesa</th>
+                      <th className="py-2 px-3">Direção</th>
+                      <th className="py-2 px-3">Resultado</th>
+                      <th className="py-2 px-3">P&L</th>
+                      <th className="py-2 px-3">Duração</th>
+                      <th className="py-2 px-3">Plano</th>
+                      <th className="py-2 px-3">Emoção</th>
+                      <th className="py-2 px-3">Ações / Detalhes</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-zinc-900">
+                    {tradesFiltrados.map((t) => {
+                      const c = contas.find(x => String(x.id) === String(t.conta_id));
+                      const emo = EMOCOES.find(e => e.label === t.emocao);
+                      const isEditing = editingTradeId === t.id;
+                      
+                      return (
+                        <tr key={t.id} className={`hover:bg-zinc-900/30 ${isEditing ? 'bg-zinc-900/80 border-l-2 border-emerald-500' : ''}`}>
+                          <td className="py-2 px-3 text-zinc-300 font-medium">{t.data} <span className="text-zinc-600 text-[9px] block">{t.sessao}</span></td>
+                          <td className="py-2 px-3">
+                            <span className="text-zinc-300 font-bold block">{c ? c.nome : 'Geral'}</span>
+                            <span className={`text-[9px] px-1.5 py-0.5 rounded ${t.tipo_conta === 'Real' ? 'bg-blue-500/10 text-blue-400' : 'bg-zinc-800 text-zinc-400'}`}>{t.tipo_conta || 'Exame'}</span>
+                          </td>
+                          <td className={`py-2 px-3 font-bold ${t.direcao === 'Buy' ? corVerde : corVermelha}`}>{t.direcao}</td>
+                          <td className="py-2 px-3"><span className={`px-1.5 py-0.5 rounded font-bold ${t.resultado==='TP'?corBgVerde:t.resultado==='SL'?corBgVermelho:'bg-zinc-800 text-zinc-300'}`}>{t.resultado}</span></td>
+                          <td className={`py-2 px-3 font-black text-sm ${t.pnl > 0 ? corVerde : t.pnl < 0 ? corVermelha : 'text-zinc-400'}`}>
+                            {t.pnl > 0 ? '+' : '-'}{formatarValor(t.pnl)}
+                          </td>
+                          <td className="py-2 px-3 text-zinc-400 whitespace-nowrap"><Clock className="w-3 h-3 inline mr-1" />{t.duracao}</td>
+                          <td className="py-2 px-3">{t.seguiu_plano ? <span className={`font-bold ${corVerde}`}>Sim</span> : <span className={`font-bold ${corVermelha}`}>Não</span>}</td>
+                          <td className="py-2 px-3"><span className="px-2 py-0.5 rounded-full bg-zinc-900 border border-zinc-800 text-[10px] whitespace-nowrap">{emo?.emoji} {t.emocao}</span></td>
+                          <td className="py-2 px-3 flex items-center gap-3">
+                            <button onClick={() => carregarTradeParaEdicao(t)} className="text-zinc-500 hover:text-blue-400" title="Editar Operação"><Edit3 className="w-4 h-4"/></button>
+                            {t.comentarios && <button onClick={() => setModal({tipo:'texto', titulo: 'Comentários do Trade', conteudo: t.comentarios})} className="text-zinc-400 hover:text-white" title="Ler Comentários"><MessageSquare className="w-4 h-4" /></button>}
+                            {t.foto_url && <button onClick={() => setModal({tipo:'imagem', conteudo: t.foto_url!})} className="text-emerald-400 hover:underline inline-flex items-center gap-1" title="Ver Print"><ImageIcon className="w-3.5 h-3.5" /></button>}
+                            <button onClick={() => handleDelete('trades', t.id)} className="text-zinc-600 hover:text-rose-400" title="Excluir"><Trash2 className="w-4 h-4" /></button>
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            </section>
+          </>
+        ) : (
+          <div className="space-y-6">
+            <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+              <div className="bg-[#0d0d0d] border border-zinc-800/80 rounded-xl p-4">
+                <span className="text-[10px] font-bold uppercase text-zinc-500">CUSTOS (EXAMES)</span>
+                <p className={`text-2xl font-black mt-1 ${corVermelha}`}>-${movimentacoes.filter(m => m.tipo === 'Custo').reduce((a, b) => a + Number(b.valor), 0).toFixed(2)}</p>
+              </div>
+              <div className="bg-[#0d0d0d] border border-zinc-800/80 rounded-xl p-4">
+                <span className="text-[10px] font-bold uppercase text-zinc-500">TOTAL RETIROS</span>
+                <p className={`text-2xl font-black mt-1 ${corVerde}`}>+${movimentacoes.filter(m => m.tipo === 'Retiro').reduce((a, b) => a + Number(b.valor), 0).toFixed(2)}</p>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+              <div className="bg-[#0d0d0d] border border-zinc-800/80 rounded-2xl p-5 space-y-4">
+                <h3 className="text-sm font-bold text-white flex items-center gap-2"><Award className="w-4 h-4" /> Gestão de Contas</h3>
+                <form onSubmit={handleAddConta} className="grid grid-cols-2 gap-3">
+                  <input type="text" placeholder="Nome da Empresa/Mesa" value={nomeConta} onChange={(e) => setNomeConta(e.target.value)} className="col-span-2 bg-[#141414] border border-zinc-800 rounded-lg px-3 py-2 text-white" required />
+                  <select value={tamanhoConta} onChange={(e) => setTamanhoConta(e.target.value)} className="bg-[#141414] border border-zinc-800 rounded-lg px-3 py-2 text-white">
+                    {['10K','25K','50K','100K','150K','250K'].map(s => <option key={s} value={s}>{s}</option>)}
+                  </select>
+                  <select value={tipoConta} onChange={(e) => setTipoConta(e.target.value as 'Teste' | 'Real')} className="bg-[#141414] border border-zinc-800 rounded-lg px-3 py-2 text-white">
+                    <option value="Teste">Teste (Exame)</option><option value="Real">Real (Funded)</option>
+                  </select>
+                  <input type="text" placeholder="Nº da Conta" value={numeroConta} onChange={(e) => setNumeroConta(e.target.value)} className="col-span-2 bg-[#141414] border border-zinc-800 rounded-lg px-3 py-2 text-white" />
+                  <button type="submit" disabled={saving} className="col-span-2 bg-emerald-500 text-black font-bold rounded-lg px-3 py-2 hover:bg-emerald-400">+ Adicionar Conta</button>
+                </form>
+
+                <div className="space-y-2 mt-4">
+                  {contas.map(c => (
+                    <div key={c.id} className="bg-[#111] border border-zinc-800 rounded-xl p-3">
+                      {editContaId === c.id ? (
+                        <div className="grid grid-cols-2 gap-2">
+                          <input type="text" value={editContaData.nome || ''} onChange={e=>setEditContaData({...editContaData, nome: e.target.value})} className="col-span-2 bg-black border border-zinc-700 rounded p-1 text-white" />
+                          <select value={editContaData.tamanho || ''} onChange={e=>setEditContaData({...editContaData, tamanho: e.target.value})} className="bg-black border border-zinc-700 rounded p-1 text-white">
+                            {['10K','25K','50K','100K','150K','250K'].map(s => <option key={s} value={s}>{s}</option>)}
+                          </select>
+                          <select value={editContaData.tipo || ''} onChange={e=>setEditContaData({...editContaData, tipo: e.target.value as 'Teste' | 'Real'})} className="bg-black border border-zinc-700 rounded p-1 text-white">
+                            <option value="Teste">Teste</option><option value="Real">Real</option>
+                          </select>
+                          <input type="text" value={editContaData.numero || ''} onChange={e=>setEditContaData({...editContaData, numero: e.target.value})} className="col-span-2 bg-black border border-zinc-700 rounded p-1 text-white" />
+                          <select value={editContaData.status || ''} onChange={e=>setEditContaData({...editContaData, status: e.target.value as 'Em andamento' | 'Aprovada' | 'Reprovada'})} className="col-span-2 bg-black border border-zinc-700 rounded p-1 text-white">
+                            <option value="Em andamento">Em andamento</option><option value="Aprovada">Aprovada</option><option value="Reprovada">Reprovada</option>
+                          </select>
+                          <button onClick={() => salvarEdicaoConta(c.id)} className="col-span-2 bg-emerald-500 text-black font-bold rounded py-1 flex justify-center items-center gap-1"><Save className="w-3 h-3"/> Salvar</button>
+                        </div>
+                      ) : (
+                        <div className="flex justify-between items-start">
+                          <div>
+                            <h4 className={`font-bold text-sm flex items-center gap-2 ${getEmpresaColor(c.nome)}`}>{c.nome} <span className="text-zinc-400 text-[10px] bg-black px-1.5 py-0.5 rounded border border-zinc-800">{c.tamanho}</span></h4>
+                            <p className="text-[10px] text-zinc-500 mt-1">{c.numero || 'Sem número'} • {c.tipo}</p>
+                            <span className={`inline-block mt-1 px-2 py-0.5 rounded text-[9px] font-bold ${c.status==='Aprovada'?corBgVerde:c.status==='Reprovada'?corBgVermelho:'bg-blue-500/10 text-blue-400 border border-blue-500/20'}`}>{c.status}</span>
+                          </div>
+                          <div className="flex gap-3">
+                            <button onClick={() => {setEditContaId(c.id); setEditContaData(c);}} className="text-zinc-500 hover:text-white"><Edit3 className="w-4 h-4"/></button>
+                            <button onClick={() => handleDelete('contas', c.id)} className="text-zinc-600 hover:text-rose-400"><Trash2 className="w-4 h-4"/></button>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              <div className="bg-[#0d0d0d] border border-zinc-800/80 rounded-2xl p-5 space-y-4">
+                <h3 className="text-sm font-bold text-white flex items-center gap-2"><Wallet className="w-4 h-4" /> Registrar Custo ou Saque</h3>
+                <form onSubmit={handleAddMovimentacao} className="space-y-3">
+                  <div className="grid grid-cols-2 gap-2">
+                    <button type="button" onClick={() => setTipoMov('Custo')} className={`py-1.5 rounded-lg border font-bold ${tipoMov === 'Custo' ? corBgVermelho : 'bg-[#141414] border-zinc-800 text-zinc-500'}`}>Custo (Taxa)</button>
+                    <button type="button" onClick={() => setTipoMov('Retiro')} className={`py-1.5 rounded-lg border font-bold ${tipoMov === 'Retiro' ? corBgVerde : 'bg-[#141414] border-zinc-800 text-zinc-500'}`}>Retiro (Saque)</button>
+                  </div>
+                  <div className="grid grid-cols-3 gap-2">
+                    <input type="text" placeholder="Empresa" value={empresaMov} onChange={e=>setEmpresaMov(e.target.value)} className="bg-[#141414] border border-zinc-800 rounded-lg px-2 py-1.5 text-white" required />
+                    <input type="number" step="0.01" placeholder="Valor $" value={valorMov} onChange={e=>setValorMov(e.target.value)} className="bg-[#141414] border border-zinc-800 rounded-lg px-2 py-1.5 text-white" required />
+                    <input type="date" value={dataMov} onChange={e=>setDataMov(e.target.value)} className="bg-[#141414] border border-zinc-800 rounded-lg px-2 py-1.5 text-white" required />
+                  </div>
+                  {tipoMov === 'Retiro' && (
+                    <label className="flex items-center justify-center gap-2 w-full bg-[#141414] border border-dashed border-zinc-700 rounded-lg px-3 py-2 text-zinc-400 cursor-pointer hover:bg-zinc-900">
+                      <Upload className="w-3.5 h-3.5" /> <span className="truncate">{fotoComprovante ? fotoComprovante.name : 'Anexar Print'}</span>
+                      <input type="file" accept="image/*" onChange={(e) => setFotoComprovante(e.target.files?.[0] || null)} className="hidden" />
+                    </label>
+                  )}
+                  <button type="submit" disabled={saving} className="w-full bg-emerald-500 text-black font-bold py-2 rounded-lg hover:bg-emerald-400">Salvar</button>
+                </form>
+
+                <div className="mt-4 space-y-2">
+                  {movimentacoes.map(m => (
+                    <div key={m.id} className="flex items-center justify-between bg-[#111] border border-zinc-800/50 p-2.5 rounded-lg">
+                      <div>
+                        <span className={`font-bold ${getEmpresaColor(m.empresa)}`}>{m.empresa}</span>
+                        <span className="text-zinc-500 font-normal text-[9px] ml-2 block">{m.data}</span>
+                      </div>
+                      <div className="flex items-center gap-3">
+                        {m.comprovante_url && <button onClick={() => setModal({tipo:'imagem', conteudo: m.comprovante_url!})} className="text-emerald-400 hover:underline flex items-center gap-1"><ImageIcon className="w-3.5 h-3.5"/> Print</button>}
+                        <span className={`font-black ${m.tipo === 'Retiro' ? corVerde : corVermelha}`}>
+                          {m.tipo==='Retiro'?'+':'-'}${m.valor.toFixed(2)}
+                        </span>
+                        <button onClick={() => handleDelete('movimentacoes', m.id)} className="text-zinc-600 hover:text-rose-400"><Trash2 className="w-4 h-4"/></button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+      </main>
+
+      {modal && (
+        <div onClick={() => setModal(null)} className="fixed inset-0 bg-black/90 z-50 flex items-center justify-center p-4">
+          <div className="relative max-w-4xl w-full bg-[#111] border border-zinc-800 rounded-2xl p-4" onClick={e=>e.stopPropagation()}>
+            <div className="flex justify-between items-center mb-4">
+              <h3 className="text-white font-bold">{modal.titulo || 'Visualização'}</h3>
+              <button onClick={() => setModal(null)} className="text-zinc-500 hover:text-white"><X className="w-5 h-5" /></button>
+            </div>
+            {modal.tipo === 'imagem' ? <img src={modal.conteudo} alt="Print" className="w-full max-h-[70vh] object-contain rounded-lg" /> : <p className="text-zinc-300 text-sm whitespace-pre-wrap">{modal.conteudo}</p>}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
