@@ -228,16 +228,6 @@ export default function App() {
     carregarDados();
   };
 
-  const getEmpresaColor = (texto: string) => {
-    const nome = texto.toLowerCase();
-    if (nome.includes('lucid')) return 'text-orange-400';
-    if (nome.includes('fundednext') || nome.includes('funded next')) return 'text-blue-400';
-    if (nome.includes('topstep')) return 'text-rose-400';
-    if (nome.includes('tradefy')) return 'text-emerald-400';
-    if (nome.includes('apex')) return 'text-green-400';
-    return 'text-zinc-300';
-  };
-
   const changeDate = (days: number) => {
     const d = new Date(dataTrade);
     d.setDate(d.getDate() + days);
@@ -333,6 +323,14 @@ export default function App() {
 
     return { pnlTotal, winRate, profitFactor, rrMedio, planoRespeitado, emocionalPredominante: emocaoObj, maxWinStreak, maxLossStreak, total };
   }, [tradesFiltrados]);
+
+  const resumoMesas = useMemo(() => {
+    const totalCustos = movimentacoes.filter(m => m.tipo === 'Custo').reduce((acc, m) => acc + Number(m.valor), 0);
+    const totalRetiros = movimentacoes.filter(m => m.tipo === 'Retiro').reduce((acc, m) => acc + Number(m.valor), 0);
+    const lucroLiquido = totalRetiros - totalCustos;
+    const roi = totalCustos > 0 ? ((totalRetiros - totalCustos) / totalCustos) * 100 : totalRetiros > 0 ? 100 : 0;
+    return { totalCustos, totalRetiros, lucroLiquido, roi };
+  }, [movimentacoes]);
 
   const formatarValor = (valor: number, forceDollar = false) => {
     if (mostrarPorcentagem && !forceDollar) {
@@ -626,11 +624,23 @@ export default function App() {
             <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
               <div className="bg-[#0d0d0d] border border-zinc-800/80 rounded-xl p-4">
                 <span className="text-[10px] font-bold uppercase text-zinc-500">CUSTOS (EXAMES)</span>
-                <p className={`text-2xl font-black mt-1 ${corVermelha}`}>-${movimentacoes.filter(m => m.tipo === 'Custo').reduce((a, b) => a + Number(b.valor), 0).toFixed(2)}</p>
+                <p className={`text-2xl font-black mt-1 ${corVermelha}`}>-${resumoMesas.totalCustos.toFixed(2)}</p>
               </div>
               <div className="bg-[#0d0d0d] border border-zinc-800/80 rounded-xl p-4">
-                <span className="text-[10px] font-bold uppercase text-zinc-500">TOTAL RETIROS</span>
-                <p className={`text-2xl font-black mt-1 ${corVerde}`}>+${movimentacoes.filter(m => m.tipo === 'Retiro').reduce((a, b) => a + Number(b.valor), 0).toFixed(2)}</p>
+                <span className="text-[10px] font-bold uppercase text-zinc-500">TOTAL RETIROS (SAQUES)</span>
+                <p className={`text-2xl font-black mt-1 ${corVerde}`}>+${resumoMesas.totalRetiros.toFixed(2)}</p>
+              </div>
+              <div className="bg-[#0d0d0d] border border-zinc-800/80 rounded-xl p-4">
+                <span className="text-[10px] font-bold uppercase text-zinc-500">LUCRO LÍQUIDO REAL</span>
+                <p className={`text-2xl font-black mt-1 ${resumoMesas.lucroLiquido >= 0 ? corVerde : corVermelha}`}>
+                  {resumoMesas.lucroLiquido >= 0 ? '+$' : '-$'}{Math.abs(resumoMesas.lucroLiquido).toFixed(2)}
+                </p>
+              </div>
+              <div className="bg-[#0d0d0d] border border-zinc-800/80 rounded-xl p-4">
+                <span className="text-[10px] font-bold uppercase text-zinc-500">ROI SOBRE MESAS</span>
+                <p className={`text-2xl font-black mt-1 ${resumoMesas.roi >= 0 ? corVerde : corVermelha}`}>
+                  {resumoMesas.roi.toFixed(1)}%
+                </p>
               </div>
             </div>
 
@@ -646,7 +656,7 @@ export default function App() {
                     <option value="Teste">Teste (Exame)</option><option value="Real">Real (Funded)</option>
                   </select>
                   <input type="text" placeholder="Nº da Conta" value={numeroConta} onChange={(e) => setNumeroConta(e.target.value)} className="col-span-2 bg-[#141414] border border-zinc-800 rounded-lg px-3 py-2 text-white" />
-                  <button type="submit" disabled={saving} className="col-span-2 bg-emerald-500 text-black font-bold rounded-lg px-3 py-2 hover:bg-emerald-400">+ Adicionar Conta</button>
+                  <button type="submit" disabled={saving} className="col-span-2 bg-white text-black font-bold rounded-lg px-3 py-2 hover:bg-zinc-200 transition-colors">+ Adicionar Conta</button>
                 </form>
 
                 <div className="space-y-2 mt-4">
@@ -665,12 +675,12 @@ export default function App() {
                           <select value={editContaData.status || ''} onChange={e=>setEditContaData({...editContaData, status: e.target.value as 'Em andamento' | 'Aprovada' | 'Reprovada'})} className="col-span-2 bg-black border border-zinc-700 rounded p-1 text-white">
                             <option value="Em andamento">Em andamento</option><option value="Aprovada">Aprovada</option><option value="Reprovada">Reprovada</option>
                           </select>
-                          <button onClick={() => salvarEdicaoConta(c.id)} className="col-span-2 bg-emerald-500 text-black font-bold rounded py-1 flex justify-center items-center gap-1"><Save className="w-3 h-3"/> Salvar</button>
+                          <button onClick={() => salvarEdicaoConta(c.id)} className="col-span-2 bg-white text-black font-bold rounded py-1 flex justify-center items-center gap-1 hover:bg-zinc-200"><Save className="w-3 h-3"/> Salvar</button>
                         </div>
                       ) : (
                         <div className="flex justify-between items-start">
                           <div>
-                            <h4 className={`font-bold text-sm flex items-center gap-2 ${getEmpresaColor(c.nome)}`}>{c.nome} <span className="text-zinc-400 text-[10px] bg-black px-1.5 py-0.5 rounded border border-zinc-800">{c.tamanho}</span></h4>
+                            <h4 className="font-bold text-sm flex items-center gap-2 text-white">{c.nome} <span className="text-zinc-400 text-[10px] bg-black px-1.5 py-0.5 rounded border border-zinc-800">{c.tamanho}</span></h4>
                             <p className="text-[10px] text-zinc-500 mt-1">{c.numero || 'Sem número'} • {c.tipo}</p>
                             <span className={`inline-block mt-1 px-2 py-0.5 rounded text-[9px] font-bold ${c.status==='Aprovada'?corBgVerde:c.status==='Reprovada'?corBgVermelho:'bg-blue-500/10 text-blue-400 border border-blue-500/20'}`}>{c.status}</span>
                           </div>
@@ -703,14 +713,14 @@ export default function App() {
                       <input type="file" accept="image/*" onChange={(e) => setFotoComprovante(e.target.files?.[0] || null)} className="hidden" />
                     </label>
                   )}
-                  <button type="submit" disabled={saving} className="w-full bg-emerald-500 text-black font-bold py-2 rounded-lg hover:bg-emerald-400">Salvar</button>
+                  <button type="submit" disabled={saving} className="w-full bg-white text-black font-bold py-2 rounded-lg hover:bg-zinc-200 transition-colors">Salvar</button>
                 </form>
 
                 <div className="mt-4 space-y-2">
                   {movimentacoes.map(m => (
                     <div key={m.id} className="flex items-center justify-between bg-[#111] border border-zinc-800/50 p-2.5 rounded-lg">
                       <div>
-                        <span className={`font-bold ${getEmpresaColor(m.empresa)}`}>{m.empresa}</span>
+                        <span className="font-bold text-white">{m.empresa}</span>
                         <span className="text-zinc-500 font-normal text-[9px] ml-2 block">{m.data}</span>
                       </div>
                       <div className="flex items-center gap-3">
