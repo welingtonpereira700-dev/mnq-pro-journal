@@ -87,7 +87,7 @@ const [seguiuPlano, setSeguiuPlano] = useState(true);
 const [emocao, setEmocao] = useState('Tranquilo');
 const [comentarios, setComentarios] = useState('');
 const [fotoTrade, setFotoTrade] = useState<File | null>(null);
-const [fotoTradeAtual, setFotoTradeAtual] = useState<string | null>(null); // Para mostrar a img na edição
+const [fotoTradeAtual, setFotoTradeAtual] = useState<string | null>(null);
 
 // Formulário de Contas
 const [nomeConta, setNomeConta] = useState('');
@@ -197,7 +197,7 @@ setDirecao(t.direcao);
 setResultado(t.resultado);
 setPnl(Math.abs(t.pnl).toString());
 
-const dParts = t.duracao.split(' ');
+const dParts = t.duracao ? t.duracao.split(' ') : ['-', 'min'];
 setDuracaoValor(dParts[0] !== '-' ? dParts[0] : '');
 setDuracaoUnidade((dParts[1] as 'min' | 'H') || 'min');
 
