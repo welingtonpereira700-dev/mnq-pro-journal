@@ -65,8 +65,21 @@ export default function App() {
   const [dataFimFiltro, setDataFimFiltro] = useState('');
   const [contaFiltro, setContaFiltro] = useState<string>('todas');
   const [ordenacao, setOrdenacao] = useState<'data_desc' | 'data_asc' | 'pnl_desc' | 'pnl_asc'>('data_desc');
-  const [notasPeriodo, setNotasPeriodo] = useState<string>(() => localStorage.getItem('trading_notas_periodo') || '');
   const [mostrarPorcentagem, setMostrarPorcentagem] = useState(false);
+
+  // Resumos por Período (Semana / Mês) com Salvar e Editar
+  const [notasPorPeriodo, setNotasPorPeriodo] = useState<Record<string, string>>(() => {
+    try {
+      const salvo = localStorage.getItem('trading_resumos_periodo');
+      if (salvo) return JSON.parse(salvo);
+      const antigo = localStorage.getItem('trading_notas_periodo');
+      return antigo ? { '15d': antigo } : {};
+    } catch {
+      return {};
+    }
+  });
+  const [rascunhoNota, setRascunhoNota] = useState('');
+  const [editandoNota, setEditandoNota] = useState(true);
 
   // Modais
   const [modal, setModal] = useState<{ tipo: 'imagem' | 'texto', conteudo: string, titulo?: string } | null>(null);
@@ -102,7 +115,30 @@ export default function App() {
   const [dataMov, setDataMov] = useState(new Date().toISOString().split('T')[0]);
   const [fotoComprovante, setFotoComprovante] = useState<File | null>(null);
 
-  useEffect(() => { localStorage.setItem('trading_notas_periodo', notasPeriodo); }, [notasPeriodo]);
+  // Sincroniza o resumo exibido de acordo com o período selecionado
+  useEffect(() => {
+    const textoAtual = notasPorPeriodo[periodoFiltro] || '';
+    setRascunhoNota(textoAtual);
+    setEditandoNota(!textoAtual);
+  }, [periodoFiltro, notasPorPeriodo]);
+
+  const salvarResumoPeriodo = () => {
+    const atualizado = { ...notasPorPeriodo, [periodoFiltro]: rascunhoNota };
+    setNotasPorPeriodo(atualizado);
+    localStorage.setItem('trading_resumos_periodo', JSON.stringify(atualizado));
+    if (rascunhoNota.trim() !== '') {
+      setEditandoNota(false);
+    }
+  };
+
+  const tituloResumo = useMemo(() => {
+    if (periodoFiltro === 'semana') return 'RESUMO DA SEMANA';
+    if (periodoFiltro === '30d') return 'RESUMO DO MÊS';
+    if (periodoFiltro === '15d') return 'RESUMO DOS ÚLT. 15 DIAS';
+    if (periodoFiltro === '60d') return 'RESUMO DOS ÚLT. 60 DIAS';
+    if (periodoFiltro === '3m') return 'RESUMO DO TRIMESTRE';
+    return 'RESUMO DO PERÍODO';
+  }, [periodoFiltro]);
 
   const carregarDados = async () => {
     setLoading(true);
@@ -554,9 +590,46 @@ export default function App() {
                 </div>
               </div>
 
-              <div className="bg-[#0d0d0d] border border-zinc-800/80 rounded-xl p-4">
-                <label className="block text-[10px] font-bold uppercase text-zinc-500 mb-2">NOTAS DO PERÍODO</label>
-                <textarea rows={2} value={notasPeriodo} onChange={(e) => setNotasPeriodo(e.target.value)} placeholder="Escreva seus aprendizados, erros e plano de ação..." className="w-full bg-[#111] border border-zinc-800 rounded-lg p-3 text-zinc-300" />
+              {/* RESUMO DA SEMANA / MÊS COM SALVAR E EDITAR */}
+              <div className="bg-[#0d0d0d] border border-zinc-800/80 rounded-xl p-4 space-y-2.5">
+                <div className="flex items-center justify-between">
+                  <label className="block text-[10px] font-bold uppercase text-zinc-400 tracking-wider">
+                    {tituloResumo}
+                  </label>
+                  <div className="flex items-center gap-2">
+                    {editandoNota ? (
+                      <button
+                        type="button"
+                        onClick={salvarResumoPeriodo}
+                        className="bg-white hover:bg-zinc-200 text-black font-bold px-3 py-1 rounded-lg text-[11px] flex items-center gap-1.5 transition-colors"
+                      >
+                        <Save className="w-3 h-3" /> Salvar
+                      </button>
+                    ) : (
+                      <button
+                        type="button"
+                        onClick={() => setEditandoNota(true)}
+                        className="bg-zinc-900 hover:bg-zinc-800 text-zinc-300 border border-zinc-700 font-bold px-3 py-1 rounded-lg text-[11px] flex items-center gap-1.5 transition-colors"
+                      >
+                        <Edit3 className="w-3 h-3" /> Editar
+                      </button>
+                    )}
+                  </div>
+                </div>
+
+                {editandoNota ? (
+                  <textarea
+                    rows={3}
+                    value={rascunhoNota}
+                    onChange={(e) => setRascunhoNota(e.target.value)}
+                    placeholder={`Escreva aqui o ${tituloResumo.toLowerCase()}, aprendizados, erros e plano de ação...`}
+                    className="w-full bg-[#141414] border border-zinc-700 rounded-lg p-3 text-white focus:outline-none focus:border-zinc-500"
+                  />
+                ) : (
+                  <div className="w-full bg-[#111] border border-zinc-800/80 rounded-lg p-3 text-zinc-200 whitespace-pre-wrap min-h-[60px]">
+                    {notasPorPeriodo[periodoFiltro]}
+                  </div>
+                )}
               </div>
             </section>
 
